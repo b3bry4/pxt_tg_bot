@@ -1,31 +1,26 @@
 import os
 import asyncio
 import logging
-
 import requests
 import uvloop
 from dotenv import load_dotenv
-
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
 
+BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
 MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
 
-
 load_dotenv()
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 IO_API_KEY = os.getenv("AI_API_KEY")
-
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN не найден в .env")
 if not IO_API_KEY:
     raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
-
+# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -74,12 +69,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
 
 
-
-
-
-
-
-
+# мейн
 async def main():
     logging.basicConfig(level=logging.INFO)
 
@@ -88,7 +78,19 @@ async def main():
 
     @dp.message(CommandStart())
     async def cmd_start(message: Message):
-        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅")
+        kb = [
+            [
+                types.KeyboardButton(text="Режим общения с быдлом"),
+                types.KeyboardButton(text="Режим конченных фотографий"),
+            ],
+        ]
+        keyboard = types.ReplyKeyboardMarkup(
+            keyboard=kb,
+            resize_keyboard=True,
+            input_field_placeholder="Выбери режим общения"
+        )
+        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь")
+
 
     @dp.message(F.text)
     async def on_text(message: Message):
