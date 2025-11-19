@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+from aiogram import types
 
 
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
@@ -89,7 +90,7 @@ async def main():
             resize_keyboard=True,
             input_field_placeholder="Выбери режим общения"
         )
-        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь")
+        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь", reply_markup=keyboard,)
 
 
     @dp.message(F.text)
