@@ -10,15 +10,10 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-
-# ================= НАСТРОЙКИ IO INTELLIGENCE =====================
-
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
 
-# Точное имя модели из /models
 MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
 
-# ================================================================
 
 load_dotenv()
 
@@ -32,8 +27,6 @@ if not IO_API_KEY:
 
 
 async def ask_deepseek_r1(prompt: str) -> str:
-    """Очень короткий ответ через DeepSeek R1."""
-
     def _call():
         headers = {
             "Content-Type": "application/json",
