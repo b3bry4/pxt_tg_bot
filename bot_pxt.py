@@ -58,7 +58,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
         print("IO/DeepSeek body:", resp.text[:400])
 
         if resp.status_code != 200:
-            return f"Ошибка IO/DeepSeek: {resp.status_code}"
+            return f"Ошибка братья😅: {resp.status_code}"
 
         try:
             j = resp.json()
@@ -69,6 +69,15 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
+
+
+
+
+
+
+
+
+
 
 
 async def main():
