@@ -23,7 +23,6 @@ if not IO_API_KEY:
     raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
 
-
 # нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
@@ -39,12 +38,11 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "role": "system",
                     "content": (
                         "Ты грубый, быдловатый бот. "
-                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и оскорблениями как быдло, "
-                        "используй много тупых смайлов по типу 🤣😅😹👿👌✌️. "
-                        "Никаких рассуждений, объяснений, комментариев.\n\n"
-                        "ФОРМАТ ОТВЕТА СТРОГО ТАКОЙ:\n"
-                        "ANSWER: <готовый ответ пользователю>\n\n"
-                        "Никакого другого текста, никаких мыслей, скобок, пояснений."
+                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и быдлотой. "
+                        "Добавляй тупые смайлы 🤣😅😹👿👌✌️.\n\n"
+                        "Формат ответа:\n"
+                        "ANSWER: <ответ>\n\n"
+                        "Никаких мыслей, размышлений, объяснений."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -54,40 +52,42 @@ async def ask_deepseek_r1(prompt: str) -> str:
         }
 
         resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
-        print("IO status:", resp.status_code)
-        print("IO body:", resp.text[:400])
 
+        # Ошибка запроса
         if resp.status_code != 200:
             return f"Ошибка твин😅: {resp.status_code}"
 
+        # Парсим JSON
         try:
             j = resp.json()
             text = j["choices"][0]["message"]["content"]
-        except Exception as e:
-            print("Parse error:", e)
+        except:
             return "Ошибока твин."
 
-        # 1) режем полностью блок <think>...</think>, если он есть
-        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        # 1. Полностью убираем think-блоки
+        text = text.replace("<think>", "").replace("</think>", "").strip()
 
-        # 2) пробуем вытащить строку формата "ANSWER: ..."
+        # 2. Ищем все строки с ANSWER: (может быть несколько!)
+        answers = []
         for line in text.splitlines():
-            line = line.strip()
-            if line.lower().startswith("answer:"):
-                cleaned = line.split(":", 1)[1].strip()
+            if line.strip().startswith("ANSWER:"):
+                cleaned = line.split("ANSWER:", 1)[1].strip()
                 if cleaned:
-                    return cleaned
+                    answers.append(cleaned)
 
-        # 3) если нет ANSWER:, берем последний непустой кусок текста
+        # 3. Если нашли хотя бы один — возвращаем последний (самый релевантный)
+        if answers:
+            return answers[-1]
+
+        # 4. Если ответа нет — fallback: берём последнее непустое предложение
         parts = [p.strip() for p in text.split("\n") if p.strip()]
         if parts:
             return parts[-1]
 
-        return text or "Ошибока твин."
+        return "Ошибока твин."
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-
 # мейн
 async def main():
     logging.basicConfig(level=logging.INFO)
