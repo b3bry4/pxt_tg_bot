@@ -12,7 +12,7 @@ import re
 
 
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
-MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
+MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
