@@ -65,21 +65,18 @@ async def ask_deepseek_r1(prompt: str) -> str:
             print("Parse error:", e)
             return "Ошибока твин."
 
-        # На всякий случай вырежем think-блок, если вдруг там есть
-        if "</think>" in text:
-            text = text.split("</think>", 1)[1].strip()
-        text = text.replace("<think>", "").strip()
+        # Удаляем think на всякий случай
+        text = text.replace("<think>", "").replace("</think>", "").strip()
 
-        # Ищем наш маркер ANSWER:
-        if "ANSWER:" in text:
-            text = text.split("ANSWER:", 1)[1].strip()
+        # Ищем строку ANSWER:
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("ANSWER:"):
+                # Вырезаем "ANSWER:" и возвращаем только ответ
+                cleaned = line.replace("ANSWER:", "", 1).strip()
+                return cleaned
 
-        # Если модель вдруг наплевала и не использовала ANSWER:
-        # возьмём последнюю непустую строку
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        if lines:
-            text = lines[-1]
-
+        # Если по какой-то причине нет ANSWER:
         return text
 
     loop = asyncio.get_event_loop()
