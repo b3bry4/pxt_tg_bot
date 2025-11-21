@@ -5,7 +5,6 @@ import logging
 import re
 
 import requests
-import uvloop
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart
@@ -152,5 +151,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    uvloop.install()
     asyncio.run(main())
