@@ -21,7 +21,6 @@ if not BOT_TOKEN:
 if not IO_API_KEY:
     raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
-# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -55,11 +54,12 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
         if resp.status_code != 200:
             return f"Ошибка братья😅: {resp.status_code}"
-        
+
         try:
             j = resp.json()
             text = j["choices"][0]["message"]["content"]
 
+            # вырезаем блок <think> ... </think>, если он есть
             if "</think>" in text:
                 text = text.split("</think>", 1)[1].strip()
 
@@ -67,7 +67,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
         except Exception as e:
             print("IO/DeepSeek parse error:", e)
-            return "Ошибка твин."
+            return "Ошибока твин."
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
