@@ -18,6 +18,56 @@ MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 IO_API_KEY = os.getenv("AI_API_KEY")
+#----------------------------------------БЛОК С ФУНКЦИЯМИ БОТА---------------------------------------------
+
+
+#функция мейн
+async def main():
+    logging.basicConfig(level=logging.INFO)
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher()
+
+
+#команда старт и выбот режимов
+    @dp.message(CommandStart())
+    async def cmd_start(message: Message):
+        kb = [
+            [
+                types.KeyboardButton(text="Режим общения с быдлом"),
+                types.KeyboardButton(text="Режим конченных фотографий"),
+                types.KeyboardButton(text="Режим перевернутых сообщений"),
+            ],
+        ]
+        keyboard = types.ReplyKeyboardMarkup(
+            keyboard=kb,
+            resize_keyboard=True,
+            input_field_placeholder="Выбери режим общения"
+        )
+        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь", reply_markup=keyboard,)
+
+
+#реакция на кнопки
+@dp.message(F.text.lower() == "Режим общения с быдлом")
+async def with_puree(message: types.Message):
+    await message.reply("Напиши сообщение студенту МГКЭИТ")
+
+@dp.message(F.text.lower() == "Режим конченных фотографий")
+async def without_puree(message: types.Message):
+    await message.reply("Нажми кнопку")
+
+@dp.message(F.text.lower() == "Режим перевернутых сообщений")
+async def without_puree(message: types.Message):
+    await message.reply("Пришли свое сообщение я его переверну!")
+
+
+#функия по выводу ответа нейросети
+    @dp.message(F.text)
+    async def on_text(message: Message):
+        print("Got:", message.text)
+        answer = await ask_deepseek_r1(message.text)
+        print("Answer ready")
+        await message.answer(answer)
+    await dp.start_polling(bot)
 
 
 # функция нейронки получение ответов и настройки
@@ -84,44 +134,6 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-
-
-#----------------------------------------БЛОК С ФУНКЦИЯМИ БОТА---------------------------------------------
-
-
-#функция мейн
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
-
-
-#команда старт и выбот режимов
-    @dp.message(CommandStart())
-    async def cmd_start(message: Message):
-        kb = [
-            [
-                types.KeyboardButton(text="Режим общения с быдлом"),
-                types.KeyboardButton(text="Режим конченных фотографий"),
-                types.KeyboardButton(text="Режим перевернутых сообщений"),
-            ],
-        ]
-        keyboard = types.ReplyKeyboardMarkup(
-            keyboard=kb,
-            resize_keyboard=True,
-            input_field_placeholder="Выбери режим общения"
-        )
-        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь", reply_markup=keyboard,)
-
-
-#функия по выводу ответа нейросети
-    @dp.message(F.text)
-    async def on_text(message: Message):
-        print("Got:", message.text)
-        answer = await ask_deepseek_r1(message.text)
-        print("Answer ready")
-        await message.answer(answer)
-    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
