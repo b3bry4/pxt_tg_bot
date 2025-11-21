@@ -1,3 +1,4 @@
+#импорты
 import os
 import asyncio
 import logging
@@ -11,18 +12,15 @@ from aiogram import types
 import re
 
 
+#настройки общие
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
 MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
-
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 IO_API_KEY = os.getenv("AI_API_KEY")
-if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN не найден в .env")
-if not IO_API_KEY:
-    raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
-# нейронка
+
+# функция нейронки получение ответов и настройки
 async def ask_deepseek_r1(prompt: str) -> str:
     def clean_model_answer(text: str) -> str:
         if not text:
@@ -86,13 +84,19 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-# мейн
+
+
+#----------------------------------------БЛОК С ФУНКЦИЯМИ БОТА---------------------------------------------
+
+
+#функция мейн
 async def main():
     logging.basicConfig(level=logging.INFO)
-
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
+
+#команда старт и выбот режимов
     @dp.message(CommandStart())
     async def cmd_start(message: Message):
         kb = [
@@ -110,14 +114,15 @@ async def main():
         await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь", reply_markup=keyboard,)
 
 
+#функия по выводу ответа нейросети
     @dp.message(F.text)
     async def on_text(message: Message):
         print("Got:", message.text)
         answer = await ask_deepseek_r1(message.text)
         print("Answer ready")
         await message.answer(answer)
-
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     uvloop.install()
