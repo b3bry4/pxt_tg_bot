@@ -24,7 +24,6 @@ if not IO_API_KEY:
 
 
 # нейронка
-# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -40,7 +39,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "content": (
                         "Ты грубый, быдловатый бот. "
                         "Отвечай ОДНОЙ-двумя короткими фразами, с матом и оскорблениями как быдло, "
-                        "используй много тупых смайлов типа 🤣😅😹👿👌✌️. "
+                        "используй много тупых смайло по типу 🤣😅😹👿👌✌️. "
                         "Никаких рассуждений, объяснений, комментариев.\n\n"
                         "ФОРМАТ ОТВЕТА СТРОГО ТАКОЙ:\n"
                         "ANSWER: <готовый ответ пользователю>\n\n"
@@ -60,6 +59,8 @@ async def ask_deepseek_r1(prompt: str) -> str:
         if resp.status_code != 200:
             return f"Ошибка твин😅: {resp.status_code}"
 
+        # --- ПАРСИНГ ОТВЕТА ---
+
         try:
             j = resp.json()
             text = j["choices"][0]["message"]["content"]
@@ -67,43 +68,55 @@ async def ask_deepseek_r1(prompt: str) -> str:
             print("Parse error:", e)
             return "Ошибока твин."
 
-        # 1. Режем блоки <think>...</think> полностью
+        # Нормализуем переносы строк
+        text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+        # 1) Выкидываем всё внутри <think>...</think>
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-        # 2. Если модель послушалась и дала ANSWER: — забираем только его
-        for line in text.splitlines():
-            line = line.strip()
-            if line.upper().startswith("ANSWER:"):
-                return line.split("ANSWER:", 1)[1].strip()
+        # 2) Если вдруг остался одиночный <think> — режем всё после него
+        if "<think>" in text:
+            text = text.split("<think>", 1)[0].strip()
 
-        # 3. Фильтруем явные «мысли» по началу строки
-        forbidden_starts = (
-            "О,",
-            "Ладно,",
-            "Ну,",
-            "Нужно",
-            "Пользователь",
-            "Юзер",
-            "(",
-        )
-        filtered_lines = []
-        for line in text.splitlines():
-            l = line.strip()
-            if not l:
-                continue
-            if any(l.startswith(fs) for fs in forbidden_starts):
-                continue
-            filtered_lines.append(l)
+        # 3) Пытаемся вытащить ANSWER: (главный приоритет)
+        answer = None
 
-        text = " ".join(filtered_lines).strip()
+        # построчно ищем строку, которая начинается с ANSWER:
+        for line in text.split("\n"):
+            line_stripped = line.strip()
+            if line_stripped.lower().startswith("answer:"):
+                answer = line_stripped[len("answer:"):].strip()
+                break
 
-        # 4. Fallback: берём самую короткую фразу как итоговый ответ
-        parts = [p.strip() for p in re.split(r"[.!?]", text) if p.strip()]
-        if parts:
-            parts.sort(key=len)
-            return parts[0]
+        # если вдруг ANSWER: есть, но не с новой строки, а в середине текста
+        if not answer and "ANSWER:" in text:
+            answer = text.split("ANSWER:", 1)[1].strip()
 
-        return "Ошибока твин."
+        # 4) Если ANSWER так и не нашли — применяем эвристику
+        if not answer:
+            # убираем типичные "мысли" без тегов
+            bad_patterns = [
+                r"^о,\s+привет.*?$",
+                r"^ладно,\s+.*?$",
+                r"^так,\s+.*?$",
+                r"^похоже,\s+.*?$",
+                r"^пользователь.*?$",
+                r"^он/она/чел.*?(скорее всего|наверное).*?$",
+                r"^\(.+?\)$",
+            ]
+            for bp in bad_patterns:
+                text = re.sub(bp, "", text, flags=re.IGNORECASE | re.MULTILINE).strip()
+
+            # берём последнюю непустую строчку
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            if lines:
+                answer = lines[-1]
+
+        # 5) Если вообще ничего не осталось —fallback
+        if not answer:
+            answer = "Ошибока твин."
+
+        return answer
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
