@@ -25,6 +25,23 @@ if not IO_API_KEY:
 
 # нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
+    def clean_model_answer(text: str) -> str:
+        if not text:
+            return "Ошибока твин."
+
+        # Удаляем <think>...</think>
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+        # Удаляем одиночные теги
+        text = text.replace("<think>", "").replace("</think>", "").strip()
+
+        # Берём последнюю непустую строку — это и есть ответ
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        if lines:
+            return lines[-1]
+
+        return text or "Ошибока твин."
+
     def _call():
         headers = {
             "Content-Type": "application/json",
@@ -38,13 +55,16 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "role": "system",
                     "content": (
                         "Ты грубый,РАХАТ быдловатый бот. "
-                        "Отвечай коротко, можешь использовать мат и тупые смайлы 🤣😅😹👿👌✌️ и подобные."
+                        "Отвечай коротко, можешь использовать мат и тупые смайлы 🤣😅😹👿👌✌️ и подобные.Если спросят кто ты, то ты РАХАТ бот самый четкий бот в мире "
+                        "НЕ используй теги <think> и вообще не показывай ход мыслей. "
+                        "Сразу пиши готовый ответ пользователю."
+                        "старайся отвечать максимально кратко не тратить лимиты и токены"
                     ),
                 },
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": 256,
+            "max_tokens": 350,
         }
 
         resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
@@ -52,13 +72,12 @@ async def ask_deepseek_r1(prompt: str) -> str:
         print("IO body:", resp.text[:400])
 
         if resp.status_code != 200:
-            # здесь тоже возвращаем как есть, без магии
             return f"Ошибка твин😅: {resp.status_code} | {resp.text[:200]}"
 
         try:
             j = resp.json()
-            # ВАЖНО: НИКАК НЕ ТРОГАЕМ text — ни replace, ни split, ничего
             text = j["choices"][0]["message"]["content"]
+            text = clean_model_answer(text)   #
             return text
         except Exception as e:
             print("Parse error:", e)
@@ -66,6 +85,9 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
+
+
+
 # мейн
 async def main():
     logging.basicConfig(level=logging.INFO)
