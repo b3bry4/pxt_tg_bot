@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 from aiogram import types
+import re
 
 
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
@@ -37,8 +38,10 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "role": "system",
                     "content": (
                         "Отвечай максимально кратко: одно-два грубых быдловатых предложения. "
-                        "Мат можно, запрещённые темы нельзя. "
-                        "Стиль резкий, прямой. "
+                        "Стиль: быдло, мат, прямота, резкость. "
+                        "Никаких длинных объяснений и внутренних размышлений. "
+                        "Сразу пиши конечный ответ, без описания своих мыслей. "
+                        "Не используй оскорбления по защищённым признакам, но обычный мат — можно. "
                         "Минимальный расход токенов. "
                         "Используй тупые смайлы 😅😂🤣😹."
                     ),
@@ -49,7 +52,6 @@ async def ask_deepseek_r1(prompt: str) -> str:
             "max_tokens": 128,
         }
 
-        # запрос
         resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
         print("IO status:", resp.status_code)
         print("IO body:", resp.text[:400])
@@ -57,7 +59,6 @@ async def ask_deepseek_r1(prompt: str) -> str:
         if resp.status_code != 200:
             return f"Ошибка твин😅: {resp.status_code}"
 
-        # парсинг ответа
         try:
             j = resp.json()
             text = j["choices"][0]["message"]["content"]
@@ -65,20 +66,28 @@ async def ask_deepseek_r1(prompt: str) -> str:
             print("Parse error:", e)
             return "Ошибока твин."
 
-        # --- Удаляем блоки <think> ---
+        # 1) На всякий случай отрежем блоки с <think>, если вдруг есть
         if "</think>" in text:
-            # Берём всё ПОСЛЕ </think>
             text = text.split("</think>", 1)[1].strip()
-        else:
-            # На случай странных ответов
-            if "<think>" in text:
-                text = text.replace("<think>", "").strip()
+        elif "<think>" in text:
+            text = text.replace("<think>", "").strip()
 
-        return text
+        # 2) Берём последнюю непустую строку – обычно там финальный ответ
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            return "Ошибока твин."
+
+        last = lines[-1]
+
+        # 3) Если там есть кавычки — вытаскиваем текст внутри
+        m = re.search(r"[\"«](.+?)[\"»]", last)
+        if m:
+            last = m.group(1).strip()
+
+        return last
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-
 
 # мейн
 async def main():
