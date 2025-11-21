@@ -55,13 +55,19 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
         if resp.status_code != 200:
             return f"Ошибка братья😅: {resp.status_code}"
-
+        
         try:
             j = resp.json()
-            return j["choices"][0]["message"]["content"]
+            text = j["choices"][0]["message"]["content"]
+
+            if "</think>" in text:
+                text = text.split("</think>", 1)[1].strip()
+
+            return text
+
         except Exception as e:
             print("IO/DeepSeek parse error:", e)
-            return "Ошибока твин."
+            return "Ошибка твин."
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
@@ -83,6 +89,7 @@ async def main():
             [
                 types.KeyboardButton(text="Режим общения с быдлом"),
                 types.KeyboardButton(text="Режим конченных фотографий"),
+                types.KeyboardButton(text="Режим перевернутых сообщений"),
             ],
         ]
         keyboard = types.ReplyKeyboardMarkup(
@@ -101,7 +108,6 @@ async def main():
         await message.answer(answer)
 
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     uvloop.install()
