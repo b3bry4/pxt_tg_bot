@@ -24,7 +24,6 @@ if not IO_API_KEY:
 
 
 # нейронка
-# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -38,9 +37,9 @@ async def ask_deepseek_r1(prompt: str) -> str:
                 {
                     "role": "system",
                     "content": (
-                        "Ты грубый, быдловатый бот. "
-                        "Отвечай ОДНОЙ-двумя короткими фразами, можно с матом и тупыми смайлами 🤣😅😹👿👌✌️. "
-                        "Не пиши свои мысли, объяснения и рассуждения, не используй теги <think>."
+                        "Ты грубый, прямой бот. "
+                        "Отвечай одной-двумя короткими фразами в разговорном стиле, можно грубовато и с матом c тупыми смайлами"
+                        "Не объясняй, не рассуждай, не описывай, что ты делаешь."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -49,63 +48,103 @@ async def ask_deepseek_r1(prompt: str) -> str:
             "max_tokens": 128,
         }
 
-        resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
+        # HTTP-запрос
+        try:
+            resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
+        except Exception as e:
+            print("HTTP error:", e)
+            return "У меня сеть легла, твин 😅"
+
         print("IO status:", resp.status_code)
         print("IO body (first 400):", resp.text[:400])
 
         if resp.status_code != 200:
-            print("Non-200 body:", resp.text[:400])
             return f"Ошибка твин😅: {resp.status_code}"
 
-        # ---------- парсим JSON ----------
+        # Парсинг JSON
         try:
             j = resp.json()
-            raw = (
-                j.get("choices", [{}])[0]
-                 .get("message", {})
-                 .get("content", "")
-            )
         except Exception as e:
             print("JSON parse error:", e)
-            print("Raw body:", resp.text[:400])
             return "Ошибока твин."
 
-        print("RAW TEXT FROM MODEL:", repr(raw))
+        # Достаём content (учитываем разные форматы)
+        raw = ""
+        try:
+            content = j["choices"][0]["message"]["content"]
+            # может быть строкой или списком кусков
+            if isinstance(content, str):
+                raw = content
+            elif isinstance(content, list):
+                # openai-стиль: список блоков {"type": "...", "text": "..."}
+                parts = []
+                for part in content:
+                    if isinstance(part, dict):
+                        if "text" in part:
+                            parts.append(str(part["text"]))
+                        elif "content" in part:
+                            parts.append(str(part["content"]))
+                raw = "\n".join(parts)
+            else:
+                raw = str(content)
+        except Exception as e:
+            print("extract content error:", e)
+            return "Ошибока твин."
 
         if not raw:
-            return "Пустой ответ от модели."
-
-        # ---------- фильтр think ----------
-        text = raw.replace("\r\n", "\n").replace("\r", "\n").strip()
+            return "Пусто, даже сказать нечего 😅"
 
         import re
 
-        # 1) если есть нормальный формат: </think> ...ответ...
-        m = re.search(r"</think>\s*(.+)", text, re.DOTALL)
-        if m:
-            text = m.group(1).strip()
-        else:
-            # 2) если только <think>, без </think> — выкидываем блок с мыслями
-            if "<think>" in text:
-                start = text.find("<think>")
-                after = text[start:]
-                # ищем первую пустую строку после мыслей
-                sep = after.find("\n\n")
-                if sep != -1:
-                    text = after[sep + 2 :].strip()
-                else:
-                    # если пустой строки нет — берём последнюю строку
-                    lines = text.splitlines()
-                    text = lines[-1].strip()
+        text = raw.replace("\r\n", "\n").replace("\r", "\n").strip()
 
-        # на всякий случай чистим теги
+        # 1) вырезаем нормальные блоки <think>...</think>
+        if "<think>" in text:
+            if "</think>" in text:
+                text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+            else:
+                # есть только открывающий тег — режем всё после него
+                before = text.split("<think>", 1)[0].strip()
+                after = ""
+                text = before or after
+
+        # на всякий случай убираем оставшиеся теги
         text = text.replace("<think>", "").replace("</think>", "").strip()
 
-        # если после всего ничего не осталось — короткая быдлячья заглушка
-        if not text:
+        # 2) если всё ещё простыня — возьмём последние 1–2 строки,
+        #    которые не выглядят как мета-рассуждение
+        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+        good_lines = []
+        for ln in lines:
+            lower = ln.lower()
+            if any(bad in lower for bad in ["пользователь", "надо ответить", "нужно ответить", "формат ответа"]):
+                continue
+            if ln.startswith("(") and ln.endswith(")"):
+                continue
+            good_lines.append(ln)
+
+        if good_lines:
+            # берём максимум две последних строки и склеиваем
+            short = " ".join(good_lines[-2:])
+        else:
+            # ничего подходящего – берём просто последнюю строку исходного текста
+            short = lines[-1] if lines else text
+
+        # 3) ограничиваем длину
+        MAX_LEN = 180
+        if len(short) > MAX_LEN:
+            cut = short[:MAX_LEN]
+            for sep in [". ", "! ", "? "]:
+                if sep in cut:
+                    cut = cut.rsplit(sep, 1)[0] + sep.strip()
+                    break
+            short = cut
+
+        short = short.strip()
+        if not short:
             return "Чё надо-то вообще? 😅"
 
-        return text
+        return short
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
