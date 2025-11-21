@@ -19,7 +19,6 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 IO_API_KEY = os.getenv("AI_API_KEY")
 
-
 # функция нейронки получение ответов и настройки
 async def ask_deepseek_r1(prompt: str) -> str:
     def clean_model_answer(text: str) -> str:
@@ -88,53 +87,59 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
 #----------------------------------------БЛОК С ФУНКЦИЯМИ БОТА---------------------------------------------
 
-
-#функция мейн
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
 
-#команда старт и выбот режимов
-    @dp.message(CommandStart())
-    async def cmd_start(message: Message):
-        kb = [
-            [
-                types.KeyboardButton(text="Режим общения с быдлом"),
-                types.KeyboardButton(text="Режим конченных фотографий"),
-                types.KeyboardButton(text="Режим перевернутых сообщений"),
-            ],
-        ]
-        keyboard = types.ReplyKeyboardMarkup(
-            keyboard=kb,
-            resize_keyboard=True,
-            input_field_placeholder="Выбери режим общения"
-        )
-        await message.answer("Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь", reply_markup=keyboard,)
+# команда старт и выбор режимов
+@dp.message(CommandStart())
+async def cmd_start(message: Message):
+    kb = [
+        [
+            types.KeyboardButton(text="Режим общения с быдлом"),
+            types.KeyboardButton(text="Режим конченных фотографий"),
+            types.KeyboardButton(text="Режим перевернутых сообщений"),
+        ],
+    ]
+    keyboard = types.ReplyKeyboardMarkup(
+        keyboard=kb,
+        resize_keyboard=True,
+        input_field_placeholder="Выбери режим общения"
+    )
+    await message.answer(
+        "Здарова я первый в мире быдло бот из берелева🤣😅. ЧТО ты хочешь",
+        reply_markup=keyboard,
+    )
 
 
-#реакция на кнопки
-@dp.message(F.text.lower() == "Режим общения с быдлом")
-async def with_puree(message: types.Message):
+# реакции на кнопки
+@dp.message(F.text == "Режим общения с быдлом")
+async def mode_chat(message: Message):
     await message.reply("Напиши сообщение студенту МГКЭИТ")
 
-@dp.message(F.text.lower() == "Режим конченных фотографий")
-async def without_puree(message: types.Message):
+
+@dp.message(F.text == "Режим конченных фотографий")
+async def mode_photos(message: Message):
     await message.reply("Нажми кнопку")
 
-@dp.message(F.text.lower() == "Режим перевернутых сообщений")
-async def without_puree(message: types.Message):
+
+@dp.message(F.text == "Режим перевернутых сообщений")
+async def mode_reverse(message: Message):
     await message.reply("Пришли свое сообщение я его переверну!")
 
 
-#функия по выводу ответа нейросети
-    @dp.message(F.text)
-    async def on_text(message: Message):
-        print("Got:", message.text)
-        answer = await ask_deepseek_r1(message.text)
-        print("Answer ready")
-        await message.answer(answer)
+# функция по выводу ответа нейросети (общий обработчик текста)
+@dp.message(F.text)
+async def on_text(message: Message):
+    print("Got:", message.text)
+    answer = await ask_deepseek_r1(message.text)
+    print("Answer ready")
+    await message.answer(answer)
+
+
+# мейн только запускает поллинг
+async def main():
+    logging.basicConfig(level=logging.INFO)
     await dp.start_polling(bot)
 
 
