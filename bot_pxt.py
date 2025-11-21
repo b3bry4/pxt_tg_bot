@@ -23,7 +23,8 @@ if not IO_API_KEY:
     raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
 
-#нейронка
+
+# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -38,7 +39,8 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "role": "system",
                     "content": (
                         "Ты грубый, быдловатый бот. "
-                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и оскорблениями как быдло используй много тупых смайло по типу 🤣😅😹👿👌✌️. "
+                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и оскорблениями как быдло, "
+                        "используй много тупых смайлов по типу 🤣😅😹👿👌✌️. "
                         "Никаких рассуждений, объяснений, комментариев.\n\n"
                         "ФОРМАТ ОТВЕТА СТРОГО ТАКОЙ:\n"
                         "ANSWER: <готовый ответ пользователю>\n\n"
@@ -65,19 +67,23 @@ async def ask_deepseek_r1(prompt: str) -> str:
             print("Parse error:", e)
             return "Ошибока твин."
 
-        # Удаляем think на всякий случай
-        text = text.replace("<think>", "").replace("</think>", "").strip()
+        # 1) режем полностью блок <think>...</think>, если он есть
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-        # Ищем строку ANSWER:
+        # 2) пробуем вытащить строку формата "ANSWER: ..."
         for line in text.splitlines():
             line = line.strip()
-            if line.startswith("ANSWER:"):
-                # Вырезаем "ANSWER:" и возвращаем только ответ
-                cleaned = line.replace("ANSWER:", "", 1).strip()
-                return cleaned
+            if line.lower().startswith("answer:"):
+                cleaned = line.split(":", 1)[1].strip()
+                if cleaned:
+                    return cleaned
 
-        # Если по какой-то причине нет ANSWER:
-        return text
+        # 3) если нет ANSWER:, берем последний непустой кусок текста
+        parts = [p.strip() for p in text.split("\n") if p.strip()]
+        if parts:
+            return parts[-1]
+
+        return text or "Ошибока твин."
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
