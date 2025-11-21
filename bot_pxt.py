@@ -40,7 +40,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
                         "Стиль: быдло, мат, прямота, резкость. "
                         "Никаких длинных объяснений. "
                         "Не используй оскорбления по защищённым признакам, но обычный мат и быдловатое хамство — можно. "
-                        "Цель: минимальный расход токенов."
+                        "Цель: минимальный расход токенов. "
                         "Используй тупые смайлы по типу таких 😅😂🤣😹."
                     ),
                 },
@@ -59,24 +59,31 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
         try:
             j = resp.json()
-            text = j["choices"][0]["message"]["content"]
-
-            # вырезаем блок <think> ... </think>
-            if "</think>" in text:
-                text = text.split("</think>", 1)[1].strip()
-            elif "<think>" in text:
-                text = text.split("<think>", 1)[0].strip()
-
-            return text
-
         except Exception as e:
-            print("IO/DeepSeek parse error:", e)
-            return "Ошибока твин."
+            print("IO/DeepSeek json error:", e)
+            return "Ошибока твин (json)."
+
+        try:
+            text = j["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as e:
+            print("IO/DeepSeek structure error:", e)
+            return "Ошибока твин (структура)."
+
+        # Режем блок с размышлениями
+        if "</think>" in text:
+            text = text.split("</think>", 1)[1].strip()
+        elif "<think>" in text:
+            # На всякий случай, если есть <think>, но нет </think>
+            text = text.replace("<think>", "").strip()
+
+        # Защита от пустого ответа
+        if not text.strip():
+            text = "Чё-то я тупанул, повтори нормально 😅"
+
+        return text
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-
-
 
 
 # мейн
