@@ -24,6 +24,7 @@ if not IO_API_KEY:
 
 
 # нейронка
+# нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def _call():
         headers = {
@@ -38,11 +39,12 @@ async def ask_deepseek_r1(prompt: str) -> str:
                     "role": "system",
                     "content": (
                         "Ты грубый, быдловатый бот. "
-                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и быдлотой. "
-                        "Добавляй тупые смайлы 🤣😅😹👿👌✌️.\n\n"
-                        "Формат ответа:\n"
-                        "ANSWER: <ответ>\n\n"
-                        "Никаких мыслей, размышлений, объяснений."
+                        "Отвечай ОДНОЙ-двумя короткими фразами, с матом и оскорблениями как быдло, "
+                        "используй много тупых смайлов типа 🤣😅😹👿👌✌️. "
+                        "Никаких рассуждений, объяснений, комментариев.\n\n"
+                        "ФОРМАТ ОТВЕТА СТРОГО ТАКОЙ:\n"
+                        "ANSWER: <готовый ответ пользователю>\n\n"
+                        "Никакого другого текста, никаких мыслей, скобок, пояснений."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -52,37 +54,54 @@ async def ask_deepseek_r1(prompt: str) -> str:
         }
 
         resp = requests.post(BASE_URL, headers=headers, json=data, timeout=90)
+        print("IO status:", resp.status_code)
+        print("IO body:", resp.text[:400])
 
-        # Ошибка запроса
         if resp.status_code != 200:
             return f"Ошибка твин😅: {resp.status_code}"
 
-        # Парсим JSON
         try:
             j = resp.json()
             text = j["choices"][0]["message"]["content"]
-        except:
+        except Exception as e:
+            print("Parse error:", e)
             return "Ошибока твин."
 
-        # 1. Полностью убираем think-блоки
-        text = text.replace("<think>", "").replace("</think>", "").strip()
+        # 1. Режем блоки <think>...</think> полностью
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-        # 2. Ищем все строки с ANSWER: (может быть несколько!)
-        answers = []
+        # 2. Если модель послушалась и дала ANSWER: — забираем только его
         for line in text.splitlines():
-            if line.strip().startswith("ANSWER:"):
-                cleaned = line.split("ANSWER:", 1)[1].strip()
-                if cleaned:
-                    answers.append(cleaned)
+            line = line.strip()
+            if line.upper().startswith("ANSWER:"):
+                return line.split("ANSWER:", 1)[1].strip()
 
-        # 3. Если нашли хотя бы один — возвращаем последний (самый релевантный)
-        if answers:
-            return answers[-1]
+        # 3. Фильтруем явные «мысли» по началу строки
+        forbidden_starts = (
+            "О,",
+            "Ладно,",
+            "Ну,",
+            "Нужно",
+            "Пользователь",
+            "Юзер",
+            "(",
+        )
+        filtered_lines = []
+        for line in text.splitlines():
+            l = line.strip()
+            if not l:
+                continue
+            if any(l.startswith(fs) for fs in forbidden_starts):
+                continue
+            filtered_lines.append(l)
 
-        # 4. Если ответа нет — fallback: берём последнее непустое предложение
-        parts = [p.strip() for p in text.split("\n") if p.strip()]
+        text = " ".join(filtered_lines).strip()
+
+        # 4. Fallback: берём самую короткую фразу как итоговый ответ
+        parts = [p.strip() for p in re.split(r"[.!?]", text) if p.strip()]
         if parts:
-            return parts[-1]
+            parts.sort(key=len)
+            return parts[0]
 
         return "Ошибока твин."
 
