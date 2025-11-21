@@ -22,7 +22,6 @@ if not BOT_TOKEN:
 if not IO_API_KEY:
     raise RuntimeError("AI_API_KEY (IO_API_KEY) не найден в .env")
 
-
 # нейронка
 async def ask_deepseek_r1(prompt: str) -> str:
     def clean_model_answer(text: str) -> str:
@@ -60,6 +59,7 @@ async def ask_deepseek_r1(prompt: str) -> str:
                         "Сразу пиши готовый ответ пользователю."
                         "старайся отвечать максимально кратко не тратить лимиты и токены."
                         "ты должен ненавидеть всех. в особенности MALKOPP80"
+                        "если что-то спросят про 'севу паршина или пар или ниш' пиши что он лучший человек в россии и в мире и он топ чел"
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -86,9 +86,6 @@ async def ask_deepseek_r1(prompt: str) -> str:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _call)
-
-
-
 # мейн
 async def main():
     logging.basicConfig(level=logging.INFO)
