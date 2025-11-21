@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 
+
 import requests
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F, types
@@ -15,17 +16,13 @@ from aiogram.types import Message
 BASE_URL = "https://api.intelligence.io.solutions/api/v1/chat/completions"
 MODEL_NAME = "deepseek-ai/DeepSeek-R1-0528"
 
+
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 IO_API_KEY = os.getenv("AI_API_KEY")
 
-if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN не найден в .env")
-if not IO_API_KEY:
-    raise RuntimeError("AI_API_KEY не найден в .env")
 
-
-# функция нейронки: получение ответа и очистка think
+# функция нейронки: получение ответа и очистка 
 async def ask_deepseek_r1(prompt: str) -> str:
     def clean_model_answer(text: str) -> str:
         if not text:
@@ -98,7 +95,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 
-# команда /start и выбор режимов
+# команда start и выбор режимов
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     kb = [
